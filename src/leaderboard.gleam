@@ -28,8 +28,9 @@ pub fn main() {
         focus_next: key.Tab,
         focus_prev: key.BackTab,
       ),
-      redraw: shore.on_timer(16),
-      // on_update has initial screen size wrong on launch
+      // redraw: shore.on_timer(16),
+      redraw: shore.on_update(),
+      // on_update has issues for me
     )
   let config =
     beach.config(
@@ -39,7 +40,16 @@ pub fn main() {
       on_connect: fn(connection, shore) {
         let info = connection
         process.send(shared_model, LoggedIn(shore, info.username))
-        process.send(shore, shore.send(SetUsername(info.username)))
+        process.send(
+          shore,
+          shore.send(
+            SetSelf(User(
+              name: string.capitalise(info.username),
+              score: 0,
+              session: shore,
+            )),
+          ),
+        )
       },
       on_disconnect: fn(connection, shore) {
         let info = connection
@@ -54,23 +64,23 @@ pub fn main() {
 // MODEL
 
 type Model {
-  Model(
-    counter: Int,
-    username: String,
-    users: List(User),
-    shared: process.Subject(SharedMsg),
-  )
+  Model(users: List(User), myself: User, shared: process.Subject(SharedMsg))
 }
 
 fn init(shared: process.Subject(SharedMsg)) -> #(Model, List(fn() -> Msg)) {
-  let model = Model(counter: 0, username: "greg", users: [], shared:)
+  let model =
+    Model(
+      myself: User(name: "greg", score: 0, session: process.new_subject()),
+      users: [],
+      shared:,
+    )
   let cmds = []
   #(model, cmds)
 }
 
 // Shared
 type User {
-  User(name: String, shore: process.Subject(shore.Event(Msg)))
+  User(name: String, score: Int, session: process.Subject(shore.Event(Msg)))
 }
 
 type SharedModel {
@@ -80,6 +90,7 @@ type SharedModel {
 type SharedMsg {
   LoggedIn(shore: process.Subject(shore.Event(Msg)), name: String)
   LoggedOut(shore: process.Subject(shore.Event(Msg)), name: String)
+  UpdateScore(shore: process.Subject(shore.Event(Msg)), score: Int)
 }
 
 fn init_shared() -> Result(
@@ -96,23 +107,43 @@ fn update_shared(
   msg: SharedMsg,
 ) -> actor.Next(SharedModel, SharedMsg) {
   case msg {
-    LoggedIn(shore, name) -> {
-      let user = User(name:, shore:)
+    LoggedIn(session, name) -> {
+      let user = User(name: string.capitalise(name), session:, score: 0)
       let SharedModel(users) = state
       let users = [user, ..users]
-      list.each(users, fn(u) { actor.send(u.shore, shore.send(Sync(users))) })
+      list.each(users, fn(u) { actor.send(u.session, shore.send(Sync(users))) })
       let state = SharedModel(users)
       io.println("Logged In: " <> name)
       actor.continue(state)
     }
-    LoggedOut(shore, username) -> {
-      let user = User(name: username, shore:)
+    LoggedOut(session, username) -> {
+      let user = User(name: username, session:, score: 0)
       let SharedModel(users) = state
       // assumes this is unique, maybe when combine with score it will be?
-      let users = list.filter(users, fn(auser) { auser.shore == user.shore })
-      list.each(users, fn(u) { actor.send(u.shore, shore.send(Sync(users))) })
+      let users =
+        list.filter(users, fn(auser) { auser.session != user.session })
+      list.each(users, fn(u) { actor.send(u.session, shore.send(Sync(users))) })
       let state = SharedModel(users)
       io.println("Logged Out: " <> username)
+      actor.continue(state)
+    }
+    UpdateScore(session, score) -> {
+      let state =
+        list.map(state.users, fn(user) {
+          case user.session == session {
+            True -> {
+              User(..user, score:)
+            }
+            False -> {
+              user
+            }
+          }
+        })
+        |> list.sort(fn(a, b) { int.compare(b.score, a.score) })
+        |> SharedModel
+      list.each(state.users, fn(u) {
+        actor.send(u.session, shore.send(Sync(state.users)))
+      })
       actor.continue(state)
     }
   }
@@ -122,20 +153,29 @@ fn update_shared(
 
 type Msg {
   AddOne
-  SetUsername(name: String)
+  SetSelf(self: User)
   Sync(users: List(User))
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, List(fn() -> Msg)) {
   case msg {
     AddOne -> {
-      #(Model(..model, counter: model.counter + 1), [])
+      process.send(
+        model.shared,
+        UpdateScore(model.myself.session, model.myself.score + 1),
+      )
+      #(
+        Model(
+          ..model,
+          myself: User(..model.myself, score: model.myself.score + 1),
+        ),
+        [],
+      )
     }
-    SetUsername(name) -> #(
-      Model(..model, username: string.capitalise(name)),
-      [],
-    )
-    Sync(users) -> #(Model(..model, users:), [])
+    SetSelf(myself) -> #(Model(..model, myself:), [])
+    Sync(users) -> {
+      #(Model(..model, users:), [])
+    }
   }
 }
 
@@ -144,20 +184,27 @@ fn update(model: Model, msg: Msg) -> #(Model, List(fn() -> Msg)) {
 fn view(model: Model) -> shore.Node(Msg) {
   ui.box(
     [
-      ui.text("Welcome " <> model.username <> "!")
+      ui.text("Welcome " <> model.myself.name <> "!")
         |> ui.align(style.Right, _),
       ui.br(),
-      ui.text_wrapped("Your score: " <> int.to_string(model.counter)),
+      ui.text_wrapped_styled(
+        "Your score: " <> int.to_string(model.myself.score),
+        Some(style.Green),
+        None,
+      ),
       ui.br(),
       ui.text("Leaderboard"),
       ui.br(),
       ui.col(
         model.users
-        |> list.map(fn(user) { ui.text(user.name) }),
+        |> list.filter(fn(user) { user != model.myself })
+        |> list.map(fn(user) {
+          ui.text(user.name <> " -> " <> int.to_string(user.score))
+        }),
       ),
       ui.hr(),
       ui.row([
-        ui.button("Press 'i'", key.Char("i"), AddOne),
+        ui.button("Press 'i' to increase", key.Char("i"), AddOne),
         ui.text_styled(
           "  Press 'q' to quit  ",
           Some(style.Black),
