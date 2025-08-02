@@ -1,24 +1,26 @@
-# leaderboard
+# GleaderBoard
 
-[![Package Version](https://img.shields.io/hexpm/v/leaderboard)](https://hex.pm/packages/leaderboard)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/leaderboard/)
+A multiplayer game with a leaderboard written in gleam!
 
-```sh
-gleam add leaderboard@1
+## Install dependencies: (only need choose one)
+
+- [devenv.sh](https://devenv.sh/getting-started/) to get all dependencies automatically (my preference)
+- Setup Gleam and Erlang on you machine manually: https://gleam.run/getting-started/installing/
+
+## Run the server 
+```bash
+ssh-keygen -t ed25519 -f ssh_host_ed25519_key -N ''
+gleam run
 ```
-```gleam
-import leaderboard
 
-pub fn main() -> Nil {
-  // TODO: An example of the project in use
-}
+## In other terminal sessions
+```bash
+ssh localhost -p 2222
 ```
-
-Further documentation can be found at <https://hexdocs.pm/leaderboard>.
 
 ## Development
 
 ```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+gleam run   # Run the project (starts ssh server on port 2222
+gleam test  # Run the tests (it's just the default one gleam provided)
 ```
