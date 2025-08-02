@@ -3,12 +3,12 @@
     let
       version = "1.7.0";
 system = "x86_64-linux";
-devenv_root = "/home/cam/Code/gleam/leaderboard";
+devenv_root = "/home/cam/Code/gleam/gleaderboard";
 devenv_dotfile = ./.devenv;
 devenv_dotfile_string = ".devenv";
 container_name = null;
 devenv_tmpdir = "/run/user/1000";
-devenv_runtime = "/run/user/1000/devenv-841dda6";
+devenv_runtime = "/run/user/1000/devenv-fe29745";
 devenv_istesting = false;
 devenv_direnvrc_latest_version = 1;
 
@@ -26,12 +26,12 @@ devenv_direnvrc_latest_version = 1;
         let
           version = "1.7.0";
 system = "x86_64-linux";
-devenv_root = "/home/cam/Code/gleam/leaderboard";
+devenv_root = "/home/cam/Code/gleam/gleaderboard";
 devenv_dotfile = ./.devenv;
 devenv_dotfile_string = ".devenv";
 container_name = null;
 devenv_tmpdir = "/run/user/1000";
-devenv_runtime = "/run/user/1000/devenv-841dda6";
+devenv_runtime = "/run/user/1000/devenv-fe29745";
 devenv_istesting = false;
 devenv_direnvrc_latest_version = 1;
 
