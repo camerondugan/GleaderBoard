@@ -193,13 +193,21 @@ fn view(model: Model) -> shore.Node(Msg) {
         None,
       ),
       ui.br(),
+      ui.hr(),
+      ui.br(),
       ui.text("Leaderboard"),
       ui.br(),
       ui.col(
         model.users
         |> list.filter(fn(user) { user != model.myself })
-        |> list.map(fn(user) {
-          ui.text(user.name <> " -> " <> int.to_string(user.score))
+        |> list.index_map(fn(user, i) {
+          ui.text(
+            int.to_string(i + 1)
+            <> ": "
+            <> user.name
+            <> " -> "
+            <> int.to_string(user.score),
+          )
         }),
       ),
       ui.hr(),
